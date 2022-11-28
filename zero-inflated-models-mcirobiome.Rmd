@@ -15,6 +15,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 library(tidyverse) # data manipulation and visualizations 
 library(pscl)  # implement ZIP, ZINB, ZHP, and ZHNB models 
+library(Maaslin2) # provides microbiome and meta data sets 
+library(readr)
 
 
 ``` 
@@ -45,8 +47,78 @@ Zero-hurdle Poisson (ZHP) and zero-hurdle negative binomial (ZHNB) belongs to th
 7. Interpret models' output 
 
 
+```{r set working dir, echo=FALSE}
+
+setwd("C:/Users/17803/Documents/RStuodio-link-GitHub/zero-inflated-microbiome-model")
+
+```
+
 
 ## Step 1 Preprocess data for downstream modeling 
+
+The 16S abundance data and metadata was retrieved from the [Inflammatory Bowel Disease Multi'omics Database] (<https://ibdmdb.org/tunnel/public/HMP2/16S/1806/products>).  
+
+```{r microbiome count data}
+
+# read in 16S abundance/ count data in HMP2 database 
+untar("hmp2_abund.tar", exdir = getwd()) # unzip a .tar file 
+
+abund_raw <- read_tsv("taxonomic_profiles.tsv.gz", 
+                      show_col_types = FALSE) %>% 
+        as.data.frame() 
+
+``` 
+
+Read in the metadata in `.csv` format. 
+```{r metadata dataframe}
+# read in the meta data 
+meta_raw <- read.csv("hmp2_metadata.csv")
+
+str(meta_raw)
+```
+
+Subset identifiers, environmental/ clinical variables of my research interest, including `Project`, `External.ID`, `Participant.ID`, `week_num`, `biopsy_location`, `diagnosis` and `Age.at.diagnosis`. 
+
+```{r subset env variables}
+
+meta_raw_sub <- meta_raw %>% 
+        select(Project, 
+               External.ID,
+               Participant.ID,
+               diagnosis,
+               week_num, 
+               biopsy_location,
+               Age.at.diagnosis) 
+
+```
+
+Merge 16S abundance data and subset metadata. 
+```{r merge 16S and metadata}
+
+# reshape abundance data 
+abund_raw_id <- abund_raw %>% 
+        gather(key="id",
+               value = "read",
+               -c("#OTU ID", "taxonomy")) 
+
+# join two data frames by "id" = "External.ID" 
+abund_meta <- abund_raw_id %>% 
+        inner_join(meta_raw_sub, 
+                   by = c("id" = "External.ID"))
+
+length(unique(abund_meta$Participant.ID)) 
+```
+
+
+The microbiome 16S abundance data set contains data points from `r length(unique(abund_meta$Participant.ID))` participants; the biopsy were collected from 7 different locations, including `Rectum`, `Ileum`, `Sigmoid Colon`, `Descending (left-sided) colon`, `Cecum`, `Ascending (right-sided) colon`, and `Transverse colon`. \ 
+For the simplicity purpose, I focused on rectum biopsy data for the subsequent analysis. 
+
+```{r extract only rectum biopsy data points} 
+
+abund_meta_rectum <- abund_meta %>% 
+        filter(biopsy_location == "Rectum") 
+
+```
 
 
 ## Step 2 Investigate outcome distribution zeros 
