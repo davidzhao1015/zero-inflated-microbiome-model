@@ -6,4 +6,4 @@ Fortunately, there is good news. Biostatisticians have developed powerful "weapo
 
 This repository aims to establish a reproducible pipeline for robust models specialized in zero-inflated microbiome data. This repository is public. Hopefully, the information in the repository might be helpful not only to my research but also to peers in the microbiome research field.  
 
-I made use of the state-of-the-art models recommended by Drs. Xia and Sun in their Book, Statistical analysis of microbiome with R (2018). In addition, I used a real-world dataset, HMP2, as an instance. 
+I made use of the state-of-the-art models recommended by Drs. Xia and Sun in their Book, Statistical analysis of microbiome with R (2018). In addition, I used a real-world dataset, HMP2, as an instance. The coding languate used is R. 
