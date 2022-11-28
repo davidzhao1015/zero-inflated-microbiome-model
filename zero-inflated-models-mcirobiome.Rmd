@@ -1,0 +1,73 @@
+---
+title: "model-zero-inflated-microbiome"
+author: "David Xin Zhao"
+date: "2022-11-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Load useful libraries 
+```{r r library, echo=FALSE}
+
+library(tidyverse) # data manipulation and visualizations 
+library(pscl)  # implement ZIP, ZINB, ZHP, and ZHNB models 
+
+
+``` 
+
+## Basic principle of zero-inflated models 
+- Types of zero in microbiome abundance data
+        1. Rounded zero
+        2. Sampling zero 
+        3. Structural zero 
+        
+- Mixture models: In mixture models, the rounded zeros are explicitly modeled with a distribution, i.e., the binomial distribution. The structural zeros are modeled as the probability of expecting a zero under the considered distribution, i.e., the negative binomial or the Poisson distribution; and the nonzero values are analyzed as the rest of the data. \ 
+Zero-inflated Poisson (ZIP) and zero-inflated negative binomial (ZINB) belongs to this category. \ 
+
+- Two-part models: The two-part model consists of two parts: first, the data are considered as zeros versus non-zeros and the probability of a zero value is modeled by a binomial distribution; and second, the non-zero values are analyzed via a truncated Poisson or truncated negative binomial models.\ 
+Zero-hurdle Poisson (ZHP) and zero-hurdle negative binomial (ZHNB) belongs to this category. 
+
+- ZIP/ ZHP focuses on the violation of the Poisson by the population heterogeneity in the presence of structural zeros; while ZINB/ ZHNB address both sources of heterogeneity, namely over dispersion and excessive zeros. 
+
+
+
+## Procedure at a glance 
+1. Load abundance data and prepare analysis abundance 
+2. Investigate outcome distribution zeros 
+3. Create offset for Poisson/ NB models (to calculate ratios)
+4. Create a formula for fitting ZIP/ ZINB and ZHP/ ZHNB 
+5. Fit ZIP/ ZINB and ZHP/ ZHNB
+6. Select the optimal model
+7. Interpret models' output 
+
+
+
+## Step 1 Preprocess data for downstream modeling 
+
+
+## Step 2 Investigate outcome distribution zeros 
+
+## Step 3 Create offset for poisson/ NB models to calculate ratios
+
+## Step 4 Create a formula for fitting ZIP/ ZINB and ZHP/ ZHNB
+
+## Step 5 Fit ZIP/ ZINB and ZHP/ ZHNB 
+
+## Step 6 Select the optimal model 
+
+## Step 7 Interpret models' output 
+
+
+
+
+
+
+
+
+
+
+
