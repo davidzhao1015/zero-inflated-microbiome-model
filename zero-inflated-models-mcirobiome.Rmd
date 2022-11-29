@@ -17,7 +17,7 @@ library(tidyverse) # data manipulation and visualizations
 library(pscl)  # implement ZIP, ZINB, ZHP, and ZHNB models 
 library(Maaslin2) # provides microbiome and meta data sets 
 library(readr)
-
+library(vegan)
 
 ``` 
 
@@ -74,7 +74,6 @@ Read in the metadata in `.csv` format.
 # read in the meta data 
 meta_raw <- read.csv("hmp2_metadata.csv")
 
-str(meta_raw)
 ```
 
 Subset identifiers, environmental/ clinical variables of my research interest, including `Project`, `External.ID`, `Participant.ID`, `week_num`, `biopsy_location`, `diagnosis` and `Age.at.diagnosis`. 
@@ -97,28 +96,109 @@ Merge 16S abundance data and subset metadata.
 
 # reshape abundance data 
 abund_raw_id <- abund_raw %>% 
-        gather(key="id",
+        gather(key="sample_id",
                value = "read",
                -c("#OTU ID", "taxonomy")) 
 
 # join two data frames by "id" = "External.ID" 
 abund_meta <- abund_raw_id %>% 
         inner_join(meta_raw_sub, 
-                   by = c("id" = "External.ID"))
+                   by = c("sample_id" = "External.ID"))
 
-length(unique(abund_meta$Participant.ID)) 
 ```
 
 
 The microbiome 16S abundance data set contains data points from `r length(unique(abund_meta$Participant.ID))` participants; the biopsy were collected from 7 different locations, including `Rectum`, `Ileum`, `Sigmoid Colon`, `Descending (left-sided) colon`, `Cecum`, `Ascending (right-sided) colon`, and `Transverse colon`. \ 
 For the simplicity purpose, I focused on rectum biopsy data for the subsequent analysis. 
-
 ```{r extract only rectum biopsy data points} 
 
 abund_meta_rectum <- abund_meta %>% 
         filter(biopsy_location == "Rectum") 
 
 ```
+
+
+Collapse taxonomy at the genus level, namely similarity equals or higher than 97% 
+```{r collapse the taxonomy at the genus level}
+
+abund_meta_rectum2 <- abund_meta_rectum %>%
+        mutate(genus = str_split_fixed(abund_meta_rectum$taxonomy, "; __", 6)[,6]) %>%  
+        mutate(genus_rep = case_when(genus == "g" ~ "unclassified", 
+                                     genus != "g" ~ genus)) %>%
+        select(-genus)
+
+```
+
+
+Select columns, `sample_id`, `Project`, `Participant.ID`, `read`, `diagnosis` and `genus_rep` from the above data frame. And then calculate total reads for each individual as the offset. 
+
+```{r }
+
+df_total_reads 
+
+abund_meta_rectum3 <- abund_meta_rectum2 %>% 
+        select(sample_id, Participant.ID, read, diagnosis, genus_rep) %>%
+        rename(subject_id = Participant.ID)
+
+df_total_reads <- abund_meta_rectum3 %>% 
+        group_by(sample_id) %>% 
+        summarise(offset = sum(read)) %>%
+        ungroup() 
+
+abund_meta_rectum4 <- abund_meta_rectum3 %>% 
+        left_join(df_total_reads, by="sample_id") 
+
+
+# convert to the factor variable with new levels 
+abund_meta_rectum4$diagnosis <- factor(abund_meta_rectum4$diagnosis,
+                                       levels = c("nonIBD", "CD", "UC"))
+
+
+# abund_meta_rectum3 %>% 
+#         group_by(sample_id) %>%
+#         summarise(lib_size= sum(read)) %>% 
+#         arrange(lib_size) %>%
+#         ggplot(aes(x=1, y=lib_size)) +  # visualize distribution of variations in library sizes 
+#         geom_jitter()+
+#         scale_y_log10() 
+
+```
+The sampling depth varied by samples which likely affect hypothesis analysis. \ 
+I consider to choose a best depth threshold and to conduct rarefaction, following the [instruction] (<https://www.youtube.com/watch?v=c7H8jLjTxSE>) introduced by Dr. Pat Schloss. \ 
+The optimal sampling depth threshold is determined according to the good's coverage statistics. 
+
+```{r determin best sampling depth}
+
+# abund_meta_rectum3 %>% 
+#         group_by(sample_id) %>% 
+#         summarise(singles = sum(read == 1),
+#                   lib_size = sum(read)) %>% 
+#         mutate(goods_cov = 100*(1-singles/lib_size)) %>%  # calculate the good's coverage 
+#         ggplot(aes(x= lib_size, y=goods_cov))+ # plot sampling size by goods coverage 
+#         geom_point() + 
+#         geom_hline(yintercept = 97, color = "red")  # good's coverage = 97 percentage 
+# 
+# 
+# abund_meta_rectum3_goods <- abund_meta_rectum3 %>% 
+#         group_by(sample_id) %>% 
+#         summarise(singles = sum(read == 1),
+#                   lib_size = sum(read)) %>% 
+#         mutate(goods_cov = 100*(1-singles/lib_size)) 
+# 
+# 
+# abund_meta_rectum3_goods %>% 
+#         filter(goods_cov >= 97) %>% 
+#         arrange(lib_size)  # sampling depth threshold = 286 reads
+# 
+# 
+# # identify ids for samples below the minimal sampling depth 
+# sample_drop <- abund_meta_rectum3_goods %>% 
+#         filter(goods_cov <97)  %>% 
+#         pull(sample_id)
+# 
+
+```
+
 
 
 ## Step 2 Investigate outcome distribution zeros 
