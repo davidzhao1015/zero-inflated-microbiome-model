@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ## Load useful libraries 
-```{r r library, echo=FALSE}
+```{r r library, message=FALSE, warning=FALSE, results='hide'}
 
 library(tidyverse) # data manipulation and visualizations 
 library(pscl)  # implement ZIP, ZINB, ZHP, and ZHNB models 
@@ -132,9 +132,7 @@ abund_meta_rectum2 <- abund_meta_rectum %>%
 
 Select columns, `sample_id`, `Project`, `Participant.ID`, `read`, `diagnosis` and `genus_rep` from the above data frame. And then calculate total reads for each individual as the offset. 
 
-```{r }
-
-df_total_reads 
+```{r offset calculation}
 
 abund_meta_rectum3 <- abund_meta_rectum2 %>% 
         select(sample_id, Participant.ID, read, diagnosis, genus_rep) %>%
@@ -200,10 +198,51 @@ The optimal sampling depth threshold is determined according to the good's cover
 ```
 
 
-
 ## Step 2 Investigate outcome distribution zeros 
 
+Subset samples with zero percentage higher ranging from 50% to close 100%. Apply models specializing in the zero-inflated data to the sub-samples. 
+```{r histogram of zero distribution in genus}
+
+df_zero_percent <- abund_meta_rectum4 %>% 
+        filter(genus_rep != "unclassified") %>% 
+        group_by(genus_rep) %>% 
+        summarise(zero_percent = mean(read == 0)) 
+
+df_zero_percent$zero_cut <- cut(df_zero_percent$zero_percent, breaks = 4)  # cut zero_percentage into four groups 
+
+levels(df_zero_percent$zero_cut)
+
+# subset variables for the genus with many zero 
+abund_meta_rectum5 <- abund_meta_rectum4 %>% 
+        left_join(df_zero_percent, by= "genus_rep") %>% 
+        arrange(desc(zero_percent)) 
+
+```
+
+
+Create histogram for representative genus, `_Clostridium_innocuum_group` with excessive zeros 
+```{r histogram for zero distribution}
+
+abund_meta_rectum5 %>% 
+        filter(zero_percent != 1) %>% 
+        filter(zero_cut == "(0.506,0.753]") %>% 
+        head(10)
+
+
+# use "_Clostridium_innocuum_group" as an example for plotting histogram 
+abund_meta_rectum5 %>% 
+        filter(genus_rep == "_Clostridium_innocuum_group") %>% 
+        ggplot(aes(x=read))+
+         geom_histogram(binwidth = 15)+
+        xlab("Observed read values")+
+        ylab("Frequency") 
+
+
+```
+
+
 ## Step 3 Create offset for poisson/ NB models to calculate ratios
+
 
 ## Step 4 Create a formula for fitting ZIP/ ZINB and ZHP/ ZHNB
 
