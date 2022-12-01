@@ -18,6 +18,8 @@ library(pscl)  # implement ZIP, ZINB, ZHP, and ZHNB models
 library(Maaslin2) # provides microbiome and meta data sets 
 library(readr)
 library(vegan)
+library(lmtest)
+library(nonnest2)
 
 ``` 
 
@@ -140,7 +142,7 @@ abund_meta_rectum3 <- abund_meta_rectum2 %>%
 
 df_total_reads <- abund_meta_rectum3 %>% 
         group_by(sample_id) %>% 
-        summarise(offset = sum(read)) %>%
+        summarise(lib_size = sum(read)) %>%
         ungroup() 
 
 abund_meta_rectum4 <- abund_meta_rectum3 %>% 
@@ -240,15 +242,141 @@ abund_meta_rectum5 %>%
 
 ```
 
-
 ## Step 3 Create offset for poisson/ NB models to calculate ratios
+The total count reads is used to calculate offset. The offset will be adjusted as a covariate in the model later to ensure microbiome response is relative abundance instead of count data. 
 
+This step is critical in fitting linear mixed effects modesl in microbiome study. 
+
+```{r create offet for poisson and NB models}
+abund_meta_rectum6 <- abund_meta_rectum5 %>%
+        mutate(Offset =  log(lib_size)) %>% 
+        filter(genus_rep == "_Clostridium_innocuum_group") 
+        
+head(abund_meta_rectum6$Offset)  # view first rows 
+
+
+```
 
 ## Step 4 Create a formula for fitting ZIP/ ZINB and ZHP/ ZHNB
+The formula can be used to specify both components of the model pertaining to count and structural zero models. 
+
+To illustrate more features of zero-inflated and zero-hurdle models and to compare these features, in the following analysis, I choose the same covariate for both count and binomial distribution, but only set offset argument to count component. 
+
+```{r establish the formula}
+
+f_model <- formula(read ~ diagnosis + offset(Offset) | diagnosis)  
+
+
+```
+
 
 ## Step 5 Fit ZIP/ ZINB and ZHP/ ZHNB 
 
+Fit a ZIP model for the representative taxa `_Clostridium_innocuum_group` as the function of `diagnosis`, indicating `nonIBD` versus `UC` versus `CD`. 
+
+Use `zeroinfl()` function of `pscl` package to fit ZIP model. 
+```{r fit ZIP mdoel}
+ZIP_innocuum <- zeroinfl(formula = f_model, 
+                         dist = "poisson",
+                         link = "logit",
+                         data = abund_meta_rectum6) 
+
+```
+
+In above formula, the `dist` option specifies the distribution for the count data. Currently, Poisson negative binomial, and geometric distribution are available in `pscl` package. 
+
+The `link = logit` option specifies the logistic link for the structural zeros versus non-structural zeros (the sampling zeros plus the positive counts). 
+
+The `offset` term (the log of the total reads in a given sample) is used here to allow for a comparison in the relative abundance (and not absolute counts) among groups. 
+
+
+```{r model summary}
+summary(ZIP_innocuum)
+
+```
+
+The row `BFGS optimization` refers to the number of optimal iterations. `diagnosisCD` and `diagnosisUC` are significant for poisson with log link function alone. Note ZIP model assumes that no over-dispersion in the non-zero count data. 
+
+
+
+Below fit ZINB model alternatively. 
+```{r ZINB model}
+
+ZINB_innocuum <- zeroinfl(formula = f_model,
+                          dist = "negbin",
+                          link="logit",
+                          data= abund_meta_rectum6) 
+
+
+# print ZINB output 
+summary(ZINB_innocuum)
+```
+The `Log(theta)` value indicates that data are over-dispersed. 
+
+
+Use the same formula and offset as fitting ZIP and ZINB models above to fit ZHP and ZHNB models using the function `hurdle()` from the `pscl` package. 
+
+```{r ZHP model}
+ZHP_innocuum <- hurdle(formula = f_model,
+                       dist = "poisson",
+                       data = abund_meta_rectum6) 
+
+summary(ZHP_innocuum)
+
+```
+
+
+Alternatively, fit ZHNB model with identical formula and offset. 
+```{r ZHNB model}
+
+ZHNB_innocuum <- hurdle(formula = f_model,
+                        dist = "negbin",
+                        data = abund_meta_rectum6) 
+
+
+summary(ZHNB_innocuum)
+
+```
+
+
+
 ## Step 6 Select the optimal model 
+
+Compare four models, `ZIP_innocuum`, `ZINB_innocuum`, `ZHP_innocuum`, and `ZHNB_innocuum` based on alternative statsitics (i.e., likelihood ratio, AIC, BIC and Vuong test). 
+
+Use `lmtest` and `nonnest2` packages for statistics computation. 
+
+```{r  compare four models}
+# likelihood 
+lmtest::lrtest(ZIP_innocuum, ZINB_innocuum) 
+
+lmtest::lrtest(ZHP_innocuum, ZHNB_innocuum)
+
+
+# AIC
+t(AIC(ZIP_innocuum, ZINB_innocuum, ZHP_innocuum, ZHNB_innocuum)) # lower is better 
+
+
+# BIC 
+nonnest2::icci(ZIP_innocuum, ZINB_innocuum, conf.level = 0.95)
+
+nonnest2::icci(ZHP_innocuum, ZHNB_innocuum)
+
+
+# Vuong test 
+vuong(ZIP_innocuum, ZHP_innocuum)
+
+vuong(ZIP_innocuum, ZHNB_innocuum)
+
+vuong(ZINB_innocuum, ZHP_innocuum) 
+
+vuong(ZINB_innocuum, ZHNB_innocuum) 
+
+vuong(ZHNB_innocuum, ZHP_innocuum) 
+
+
+```
+
 
 ## Step 7 Interpret models' output 
 
