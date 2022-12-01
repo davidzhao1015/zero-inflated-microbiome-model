@@ -1,5 +1,5 @@
 ---
-title: "model-zero-inflated-microbiome"
+title: "Model Zero-Inflated Microbiome"
 author: "David Xin Zhao"
 date: "Last edited `r format(Sys.time(), '%d %B %Y')`"
 knit: (function(inputFile, encoding) { 
@@ -43,7 +43,7 @@ library(nonnest2)
 - Types of zero in microbiome abundance data
         1. Rounded zero
         2. Sampling zero 
-        3. Structural zero 
+        3. Structural zero: main source of excessive zero which Poisson regression cannot fit well 
         
 - Mixture models: In mixture models, the rounded zeros are explicitly modeled with a distribution, i.e., the binomial distribution. The structural zeros are modeled as the probability of expecting a zero under the considered distribution, i.e., the negative binomial or the Poisson distribution; and the nonzero values are analyzed as the rest of the data. \ 
 Zero-inflated Poisson (ZIP) and zero-inflated negative binomial (ZINB) belongs to this category. \ 
@@ -247,13 +247,49 @@ abund_meta_rectum5 %>%
         head(10)
 
 
+```
+
+```{r mean and zero count}
+
+zero_summary_innocuum <- abund_meta_rectum5 %>%
+  filter(genus_rep == "_Clostridium_innocuum_group") %>% 
+  group_by(diagnosis) %>% 
+  summarise(sample_size = n(),
+            zero_read = sum(read == 0),
+            average_read = round(mean(read), 2)) 
+
+```
+
+
+
+```{r histogram plot}
 # use "_Clostridium_innocuum_group" as an example for plotting histogram 
-abund_meta_rectum5 %>% 
+
+abund_meta_rectum5$diagnosis <- factor(abund_meta_rectum5$diagnosis,
+                                          levels = c("nonIBD", "CD", "UC"))
+
+hist_innocuum <- abund_meta_rectum5 %>% 
         filter(genus_rep == "_Clostridium_innocuum_group") %>% 
         ggplot(aes(x=read))+
-         geom_histogram(binwidth = 15)+
+        geom_histogram(aes(fill = diagnosis), alpha=0.5, binwidth = 10)+
         xlab("Observed read values")+
-        ylab("Frequency") 
+        ylab("Frequency")+
+        coord_cartesian(ylim = c(0, 10), xlim=c(0,100))+
+        facet_wrap(vars(diagnosis))
+
+
+df_innocuum_label <- zero_summary_innocuum %>% 
+  mutate(sample_size_lab = paste("Sample size", sample_size, sep = ": ")) %>% 
+  mutate(zero_read_lab = paste("Zero count", zero_read, sep = ": ")) %>% 
+  mutate(average_read_lab = paste("Average", average_read, sep = ": ")) 
+
+hist_innocuum +
+  geom_text(data = df_innocuum_label,
+            aes(label = sample_size_lab), x=40, y=9.5, hjust=0, size=3.5) +
+  geom_text(data = df_innocuum_label,
+            aes(label = zero_read_lab), x=40, y=9, hjust=0, size=3.5)+
+  geom_text(data = df_innocuum_label,
+            aes(label = average_read_lab), x=40, y=8.5, hjust=0, size=3.5)
 
 
 ```
@@ -394,7 +430,7 @@ vuong(ZHNB_innocuum, ZHP_innocuum)
 ```
 
 
-## Step 7 Interpret models' output 
+## Step 7 Interpret the model coefficients 
 
 
 
