@@ -1,5 +1,5 @@
 ---
-title: "model-zero-inflated-microbiome"
+title: "Model Zero-Inflated Microbiome"
 author: "David Xin Zhao"
 date: "Last edited `r format(Sys.time(), '%d %B %Y')`"
 knit: (function(inputFile, encoding) { 
