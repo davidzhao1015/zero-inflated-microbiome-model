@@ -1,8 +1,24 @@
 ---
 title: "model-zero-inflated-microbiome"
 author: "David Xin Zhao"
-date: "2022-11-28"
-output: html_document
+date: "Last edited `r format(Sys.time(), '%d %B %Y')`"
+knit: (function(inputFile, encoding) { 
+      out_dir <- 'docs';
+      rmarkdown::render(inputFile,
+                        encoding=encoding, 
+                        output_file=file.path(dirname(inputFile), out_dir, 'index.html'))}) 
+output:
+  html_document:
+    theme: cosmo
+    highlight: pygments
+    df_print: paged
+    toc: TRUE
+    toc_float: TRUE
+    collapsed: FALSE
+    number_sections: TRUE
+    fig_width: 7
+    fig_height: 6
+    fig_caption: TRUE
 ---
 
 ```{r setup, include=FALSE}
