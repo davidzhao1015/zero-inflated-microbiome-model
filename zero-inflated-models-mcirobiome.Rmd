@@ -456,5 +456,3 @@ summary(ZINB_innocuum)
 2. Zero-inflation model coefficients: 
 - p values for the intercept, and coefficients are not significant, indicating there is no significant difference in structural zeros among three diagnosis status. 
 
-
-
