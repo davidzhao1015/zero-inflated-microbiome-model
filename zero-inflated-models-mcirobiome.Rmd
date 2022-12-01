@@ -129,7 +129,6 @@ abund_meta <- abund_raw_id %>%
 The microbiome 16S abundance data set contains data points from `r length(unique(abund_meta$Participant.ID))` participants; the biopsy were collected from 7 different locations, including `Rectum`, `Ileum`, `Sigmoid Colon`, `Descending (left-sided) colon`, `Cecum`, `Ascending (right-sided) colon`, and `Transverse colon`. \ 
 For the simplicity purpose, I focused on rectum biopsy data for the subsequent analysis. 
 ```{r extract only rectum biopsy data points} 
-
 abund_meta_rectum <- abund_meta %>% 
         filter(biopsy_location == "Rectum") 
 
@@ -249,6 +248,13 @@ abund_meta_rectum5 %>%
 
 ```
 
+Use `dpois` to estimate probability of zeros, `zero_prop_poisson` assuming that sample follows Poisson distribution. The estimated frequency of zero `zero_freq_poisson` is calculated based on `zero_prop_poisson`. 
+
+In addition, calculate empirical zero frequency and average in the sample. 
+
+We can tell whether excessive zero exist when empirical zero frequency is (or not) much higher than estimated one under the Poisson distribution; we can also tell whether over-dispersion exist when empirical average not close to variance. 
+
+
 ```{r mean and zero count}
 
 zero_summary_innocuum <- abund_meta_rectum5 %>%
@@ -256,10 +262,21 @@ zero_summary_innocuum <- abund_meta_rectum5 %>%
   group_by(diagnosis) %>% 
   summarise(sample_size = n(),
             zero_read = sum(read == 0),
-            average_read = round(mean(read), 2)) 
+            average_read = round(mean(read), 1),
+            variance = round(var(read), 1)) %>% 
+  mutate(zero_prop_poisson = round(dpois(0, average_read),2)) %>% 
+  mutate(zero_freq_poisson = zero_prop_poisson*sample_size)
+
+# print the table 
+zero_summary_innocuum  
+
 
 ```
+Excessive zero exist in abundance distribution of the taxa `_Clostridium_innocuum_group`, since empirical zero frequency is much higher than estimated zero frequency under Poisson distribution. And, a large proportion of empirical zero is the structural zero. 
 
+In addition, huge difference between empirical average and variance exist in the sample, indicating over-dispersion. 
+
+Therefore, zero-inflated or zero-hurdle negative binomial might be a suitable choice. 
 
 
 ```{r histogram plot}
@@ -289,10 +306,13 @@ hist_innocuum +
   geom_text(data = df_innocuum_label,
             aes(label = zero_read_lab), x=40, y=9, hjust=0, size=3.5)+
   geom_text(data = df_innocuum_label,
-            aes(label = average_read_lab), x=40, y=8.5, hjust=0, size=3.5)
+            aes(label = average_read_lab), x=40, y=8.5, hjust=0, size=3.5)+
+  geom_vline(data= df_innocuum_label, aes(xintercept = average_read), color="blue", linetype="dashed")
 
 
 ```
+
+The histogram illustrates that empirical zero frequency and means vary by the diagnosis status. 
 
 ## Step 3 Create offset for poisson/ NB models to calculate ratios
 The total count reads is used to calculate offset. The offset will be adjusted as a covariate in the model later to ensure microbiome response is relative abundance instead of count data. 
@@ -309,18 +329,20 @@ head(abund_meta_rectum6$Offset)  # view first rows
 
 ```
 
+
 ## Step 4 Create a formula for fitting ZIP/ ZINB and ZHP/ ZHNB
 The formula can be used to specify both components of the model pertaining to count and structural zero models. 
 
 To illustrate more features of zero-inflated and zero-hurdle models and to compare these features, in the following analysis, I choose the same covariate for both count and binomial distribution, but only set offset argument to count component. 
 
+The response variable is `read` (abundance) of the taxa `_Clostridium_innocuum_group`, and the independent (explanatory) variable is `diagnosis` which is a multi-level, categorical variable. The offset term is logarithm value of total read in individual samples. 
+
 ```{r establish the formula}
 
 f_model <- formula(read ~ diagnosis + offset(Offset) | diagnosis)  
 
-
 ```
-
+There two components in the formula. The first component is Poisson or Negative Binomial regression; and the second one the binomial regression. In particular, `read ~ diagnosis + offset(Offset)` is for the first component, while `read ~ diagnosis` is for binomial regression. 
 
 ## Step 5 Fit ZIP/ ZINB and ZHP/ ZHNB 
 
@@ -349,25 +371,23 @@ summary(ZIP_innocuum)
 
 The row `BFGS optimization` refers to the number of optimal iterations. `diagnosisCD` and `diagnosisUC` are significant for poisson with log link function alone. Note ZIP model assumes that no over-dispersion in the non-zero count data. 
 
+`Log-likelihood` measures how well the model fits data points. 
 
 
 Below fit ZINB model alternatively. 
 ```{r ZINB model}
-
 ZINB_innocuum <- zeroinfl(formula = f_model,
                           dist = "negbin",
                           link="logit",
                           data= abund_meta_rectum6) 
 
-
 # print ZINB output 
 summary(ZINB_innocuum)
 ```
-The `Log(theta)` value indicates that data are over-dispersed. 
+The `Log(theta)` value is significant, indicating that abundance are over-dispersed. 
 
 
 Use the same formula and offset as fitting ZIP and ZINB models above to fit ZHP and ZHNB models using the function `hurdle()` from the `pscl` package. 
-
 ```{r ZHP model}
 ZHP_innocuum <- hurdle(formula = f_model,
                        dist = "poisson",
@@ -394,51 +414,47 @@ summary(ZHNB_innocuum)
 
 ## Step 6 Select the optimal model 
 
-Compare four models, `ZIP_innocuum`, `ZINB_innocuum`, `ZHP_innocuum`, and `ZHNB_innocuum` based on alternative statsitics (i.e., likelihood ratio, AIC, BIC and Vuong test). 
+Compare four models, `ZIP_innocuum`, `ZINB_innocuum`, `ZHP_innocuum`, and `ZHNB_innocuum` based on alternative statsitics (i.e., likelihood ratio, and AIC). 
 
-Use `lmtest` and `nonnest2` packages for statistics computation. 
+Note that likelihood ratio test is suitable for nested models alone; whereas AIC is suitable for both nested and non-nested models. 
 
-```{r  compare four models}
+Use `lmtest` package for statistics computation. 
+
+```{r LRT}
 # likelihood 
 lmtest::lrtest(ZIP_innocuum, ZINB_innocuum) 
 
 lmtest::lrtest(ZHP_innocuum, ZHNB_innocuum)
 
 
+```
+According to likelihood ratio tests,  `ZINB_innocuum` outperforms `ZIP_innocuum` since the former has significantly smaller residuals (deviance) than the later one. 
+
+`ZHNB_innocuum` outperforms `ZHP_innocuum`, since the former has significantly smaller residuals (deviance) than the later one. 
+
+```{r AIC}
 # AIC
-t(AIC(ZIP_innocuum, ZINB_innocuum, ZHP_innocuum, ZHNB_innocuum)) # lower is better 
-
-
-# BIC 
-nonnest2::icci(ZIP_innocuum, ZINB_innocuum, conf.level = 0.95)
-
-nonnest2::icci(ZHP_innocuum, ZHNB_innocuum)
-
-
-# Vuong test 
-vuong(ZIP_innocuum, ZHP_innocuum)
-
-vuong(ZIP_innocuum, ZHNB_innocuum)
-
-vuong(ZINB_innocuum, ZHP_innocuum) 
-
-vuong(ZINB_innocuum, ZHNB_innocuum) 
-
-vuong(ZHNB_innocuum, ZHP_innocuum) 
-
+t(AIC(ZIP_innocuum, ZINB_innocuum, ZHP_innocuum, ZHNB_innocuum)) # AIC smaller is better 
 
 ```
+According to AIC,  `ZINB_innocuum` seems the best model in the present case, since it has the smallest AIC relative to other three counterparts. 
 
 
 ## Step 7 Interpret the model coefficients 
+Use ZINB_innocuum model as the example to present how to interpret coefficients in a reasonable way. 
 
+```{r print summary output}
+summary(ZINB_innocuum)
 
+```
 
+1. Count model coefficients: 
+- The average relative abundance (excluding structural zero) of the taxa `_Clostridium_innocuum_group` at the baseline (`nonIBD`) is `r exp(-6.2744)`.  
+- The average relative abundance (excluding structural zero) in `diagnosisUC` group is `r 100*(1-exp(-1.9110))`% lower relative to the baseline level. 
+- Log(theta) is significant, indicating that over-dispersion exists. 
 
-
-
-
-
+2. Zero-inflation model coefficients: 
+- p values for the intercept, and coefficients are not significant, indicating there is no significant difference in structural zeros among three diagnosis status. 
 
 
 
