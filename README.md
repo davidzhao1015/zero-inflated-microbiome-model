@@ -6,4 +6,4 @@ Fortunately, statisticians have developed powerful "weapons", robust models spec
 
 This repository aims to establish an R pipeline to build models to fit microbiome abundance data with over-dispersion and zero inflation. This repository is public and provides practical information to microbiome researchers.
 
-I made use of the state-of-the-art models and R modules introduced by Drs. Xia and Sun in their Book, Statistical analysis of microbiome with R (2018). I demonstrate an entire R pipeline from data processing to model fitting to coefficient interpretation, with the real-world data set provided by Human Microbiome Project.
+I made use of the state-of-the-art models and R modules introduced by Drs. Xia and Sun in their Book, Statistical analysis of microbiome with R (2018). I demonstrate an entire R pipeline in a case study context, from data processing to model fitting to coefficient interpretation, with the real-world data set provided by the NIH Human Microbiome Project.
