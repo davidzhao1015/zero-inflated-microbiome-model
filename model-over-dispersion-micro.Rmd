@@ -10,22 +10,217 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-## Basic principles of models specializing in over-dispersed microbiome count data
-1. What is "over dispersion"? Over dispersion is the presence of greater variability in a data set than would be expected based on a given statistical model. Over dispersion destroys the assumption of Poisson regression that mean (nearly) equals to variance. Microbiome count data is typically over dispersed. In a result, Poisson regression is not suitable to fit microbiome count data, though microbiome count distribution is similar to Poisson distribution in some way. 
+## Basic principles of models 
+1. What is "over dispersion"? 
+- Over dispersion is the presence of greater variability in a data set than would be expected based on a given statistical model. - Over dispersion destroys the assumption of Poisson regression that mean (nearly) equals to variance. 
+- Microbiome count data is typically over dispersed. 
+- In a result, Poisson regression is not suitable to fit microbiome count data, though microbiome count distribution is similar to Poisson distribution in some way. 
 
-2. Negative Binomial (NB) regression is the most common alternative to Poisson model, accounting for over dispersion. NB model includes an additional gamma parameter to regress a non-linear relationship between variance and mean. 
+2. Negative Binomial (NB) regression: 
+- The most common alternative to Poisson model, accounting for over dispersion. 
+- NB model includes an additional gamma parameter to regress a non-linear relationship between variance and mean. 
 
 3. R packages to implement NB regression:
 - `edgeR` package: One of most popular implementations of variance stabilization technique used in RNA-Seq analysis and can be adapted for microbiome count data. The edgeR package implements an exact binomial test, which generalized for over dispersed counts via the function `exactTest()`.  
-- `DESeq`/ `DESeq2` package: 
+- `DESeq`/ `DESeq2` package 
 
 
 
 ## Steps to implement NB model with R packages 
 ### `edgeR` pakcage 
+1. Load data set and step up the count matrix 
+2. Build the edgeR object 
+3. Filter the data 
+4. Normalize the data 
+5. Explore the data by multi-dimensional scaling (MDS) plot 
+6. Estimate the dispersion 
+7. Test the differential abundance
+8. Interpret the results of differential expression analysis with diagnostic plots 
+
+### `DESeq2` package
+1. Create the count table
+2. Create the sample metadata table 
+3. Build the DESeq2 object 
+4. Filter the data 
+5. Normalize the count data 
+6. Estimate the dispersion 
+7. Test the differential abundance 
+8. Diagnose and improve the testing results 
+9. Extract differentially abundant OTUs and export results table 
 
 
-### `DESeq`/ `DESeq2` package
+```{r set working dir, echo=FALSE}
+
+setwd("C:/Users/17803/Documents/RStuodio-link-GitHub/zero-inflated-microbiome-model")
+
+```
+
+
+## Load necessary libraries 
+```{r packages, results='hide', message=FALSE, warning=FALSE}
+library(tidyverse)
+library(edgeR)
+
+```
+
+
+
+
+## R pipeline with `edgeR` package 
+### Step 1 Load data set and step up the count matrix 
+
+Prepare a OTUs-by-samples format data according to edgeR input data requirement. 
+
+The 16S abundance data and metadata was retrieved from the [Inflammatory Bowel Disease Multi'omics Database](https://ibdmdb.org/tunnel/public/HMP2/16S/1806/products).  
+
+```{r microbiome count data}
+
+# read in 16S abundance/ count data in HMP2 database 
+untar("hmp2_abund.tar", exdir = getwd()) # unzip a .tar file 
+
+abund_raw <- read_tsv("taxonomic_profiles.tsv.gz", 
+                      show_col_types = FALSE) %>% 
+        as.data.frame() 
+
+
+mat_abund_raw <- abund_raw %>% 
+        select(-taxonomy) %>% 
+        column_to_rownames("#OTU ID") %>% 
+        as.matrix()
+
+
+``` 
+
+Read in the metadata in `.csv` format. 
+```{r metadata dataframe}
+# read in the meta data 
+meta_raw <- read.csv("hmp2_metadata.csv")
+
+```
+
+Subset identifiers, environmental/ clinical variables of my research interest, including `Project`, `External.ID`, `Participant.ID`, `week_num`, `biopsy_location`, `diagnosis` and `Age.at.diagnosis`. 
+
+```{r subset env variables}
+
+meta_raw_sub <- meta_raw %>% 
+        select(Project, 
+               External.ID,
+               Participant.ID,
+               diagnosis,
+               week_num, 
+               biopsy_location,
+               Age.at.diagnosis) 
+
+```
+
+Merge 16S abundance data and subset metadata. 
+```{r merge 16S and metadata}
+
+# reshape abundance data 
+abund_raw_id <- abund_raw %>% 
+        gather(key="sample_id",
+               value = "read",
+               -c("#OTU ID", "taxonomy")) 
+
+# join two data frames by "id" = "External.ID" 
+abund_meta <- abund_raw_id %>% 
+        inner_join(meta_raw_sub, 
+                   by = c("sample_id" = "External.ID"))
+
+```
+
+
+The microbiome 16S abundance data set contains data points from `r length(unique(abund_meta$Participant.ID))` participants; the biopsy were collected from 7 different locations, including `Rectum`, `Ileum`, `Sigmoid Colon`, `Descending (left-sided) colon`, `Cecum`, `Ascending (right-sided) colon`, and `Transverse colon`. \ 
+For the simplicity purpose, I focused on rectum biopsy data for the subsequent analysis. 
+```{r extract only rectum biopsy data points} 
+abund_meta_rectum <- abund_meta %>% 
+        filter(biopsy_location == "Rectum") 
+
+```
+
+
+Collapse taxonomy at the genus level, namely similarity equals or higher than 97% 
+```{r collapse the taxonomy at the genus level}
+
+abund_meta_rectum2 <- abund_meta_rectum %>%
+        mutate(genus = str_split_fixed(abund_meta_rectum$taxonomy, "; __", 6)[,6]) %>%  
+        mutate(genus_rep = case_when(genus == "g" ~ "unclassified", 
+                                     genus != "g" ~ genus)) %>%
+        select(-genus)
+
+```
+
+
+Select columns, `sample_id`, `Project`, `Participant.ID`, `read`, `diagnosis` and `genus_rep` from the above data frame. And then calculate total reads for each individual as the offset. 
+
+```{r offset calculation}
+
+abund_meta_rectum3 <- abund_meta_rectum2 %>% 
+        rename(otu = "#OTU ID") %>% 
+        select(sample_id, Participant.ID, read, diagnosis, otu) %>%
+        rename(subject_id = Participant.ID)
+
+df_total_reads <- abund_meta_rectum3 %>% 
+        group_by(sample_id) %>% 
+        summarise(lib_size = sum(read)) %>%
+        ungroup() 
+
+abund_meta_rectum4 <- abund_meta_rectum3 %>% 
+        left_join(df_total_reads, by="sample_id") 
+
+
+# convert to the factor variable with new levels 
+abund_meta_rectum4$diagnosis <- factor(abund_meta_rectum4$diagnosis,
+                                       levels = c("nonIBD", "CD", "UC"))
+```
+
+```{r variance-mean plot}
+
+
+
+
+```
+
+
+### Step 2 Build the edgeR object 
+
+The edgeR stores data in a simple list-based data object called a `DGEList`.  
+
+First, create a grouping variable or extract grouping information from the meta data, telling the edgeR which samples belong to which group. And then specify the count matrix and the groups in the function `DGEList()`. 
+
+Prior to building the edgeR object, make sure dimensions of the count matrix is equal to length of the grouping variable, `diagnosis`. 
+
+
+```{r}
+
+mat_count <- abund_meta_rectum4 %>% 
+        select(sample_id, otu, read) %>% 
+        spread(sample_id, read) %>% 
+        column_to_rownames("otu") %>% 
+        as.matrix()
+      
+dim(mat_count)  # 89 distinct samples  
+
+
+groups <- abund_meta_rectum4 %>% 
+        filter(sample_id %in% colnames(mat_count)) %>% 
+        group_by(sample_id) %>% 
+        filter(row_number()==1) %>% 
+        pull(diagnosis)
+
+length(groups)  # 89 distinct samples 
+
+```
+```{r edgeR object}
+y <- DGEList(counts = mat_count, group = groups)  
+
+names(y) 
+
+```
+
+
+
+
 
 
 
