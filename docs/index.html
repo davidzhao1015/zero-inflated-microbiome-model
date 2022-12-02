@@ -2866,7 +2866,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Model Zero-Inflated Microbiome</h1>
 <h4 class="author">David Xin Zhao</h4>
-<h4 class="date">Last edited 01 December 2022</h4>
+<h4 class="date">Last edited 02 December 2022</h4>
 
 </div>
 
@@ -2924,8 +2924,8 @@ glance</h2>
 <div id="step-1-preprocess-data-for-downstream-modeling" class="section level2" number="0.4">
 <h2><span class="header-section-number">0.4</span> Step 1 Preprocess
 data for downstream modeling</h2>
-<p>The 16S abundance data and metadata was retrieved from the
-[Inflammatory Bowel Disease Multi’omics Database] (<a href="https://ibdmdb.org/tunnel/public/HMP2/16S/1806/products" class="uri">https://ibdmdb.org/tunnel/public/HMP2/16S/1806/products</a>).</p>
+<p>The 16S abundance data and metadata was retrieved from the <a href="https://ibdmdb.org/tunnel/public/HMP2/16S/1806/products">Inflammatory
+Bowel Disease Multi’omics Database</a>.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># read in 16S abundance/ count data in HMP2 database </span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">untar</span>(<span class="st">&quot;hmp2_abund.tar&quot;</span>, <span class="at">exdir =</span> <span class="fu">getwd</span>()) <span class="co"># unzip a .tar file </span></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -3006,9 +3006,9 @@ total reads for each individual as the offset.</p>
 <span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a><span class="co">#         scale_y_log10() </span></span></code></pre></div>
 <p>The sampling depth varied by samples which likely affect hypothesis
 analysis.   I consider to choose a best depth threshold and to conduct
-rarefaction, following the [instruction] (<a href="https://www.youtube.com/watch?v=c7H8jLjTxSE" class="uri">https://www.youtube.com/watch?v=c7H8jLjTxSE</a>) introduced
-by Dr. Pat Schloss.   The optimal sampling depth threshold is determined
-according to the good’s coverage statistics.</p>
+rarefaction, following the <a href="https://www.youtube.com/watch?v=c7H8jLjTxSE">instruction</a>
+introduced by Dr. Pat Schloss.   The optimal sampling depth threshold is
+determined according to the good’s coverage statistics.</p>
 <div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># abund_meta_rectum3 %&gt;% </span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="co">#         group_by(sample_id) %&gt;% </span></span>
 <span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a><span class="co">#         summarise(singles = sum(read == 1),</span></span>
@@ -3162,8 +3162,8 @@ offset argument to count component.</p>
 <p>The response variable is <code>read</code> (abundance) of the taxa
 <code>_Clostridium_innocuum_group</code>, and the independent
 (explanatory) variable is <code>diagnosis</code> which is a multi-level,
-categorical variable. The offset term is logarithm value of total read
-in individual samples.</p>
+categorical variable. The <a href="https://www.youtube.com/watch?v=EyKba_sOp0k&amp;list=PLLTSM0eKjC2cYVUoex9WZpTEYyvw5buRc&amp;index=9">offset</a>
+term is logarithm value of total read in individual samples.</p>
 <div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>f_model <span class="ot">&lt;-</span> <span class="fu">formula</span>(read <span class="sc">~</span> diagnosis <span class="sc">+</span> <span class="fu">offset</span>(Offset) <span class="sc">|</span> diagnosis)  </span></code></pre></div>
 <p>There two components in the formula. The first component is Poisson
 or Negative Binomial regression; and the second one the binomial
@@ -3301,8 +3301,7 @@ the <code>pscl</code> package.</p>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>                        <span class="at">dist =</span> <span class="st">&quot;negbin&quot;</span>,</span>
 <span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">data =</span> abund_meta_rectum6) </span>
 <span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(ZHNB_innocuum)</span></code></pre></div>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="fu">summary</span>(ZHNB_innocuum)</span></code></pre></div>
 <pre><code>## 
 ## Call:
 ## hurdle(formula = f_model, data = abund_meta_rectum6, dist = &quot;negbin&quot;)
@@ -3334,8 +3333,8 @@ the <code>pscl</code> package.</p>
 optimal model</h2>
 <p>Compare four models, <code>ZIP_innocuum</code>,
 <code>ZINB_innocuum</code>, <code>ZHP_innocuum</code>, and
-<code>ZHNB_innocuum</code> based on alternative statsitics (i.e.,
-likelihood ratio, and AIC).</p>
+<code>ZHNB_innocuum</code> based on alternative statsitics (i.e., <a href="https://www.youtube.com/watch?v=tDvwpET-nJQ&amp;list=PLLTSM0eKjC2cYVUoex9WZpTEYyvw5buRc&amp;index=12">likelihood
+ratio</a>, and <a href="https://www.youtube.com/watch?v=tDvwpET-nJQ&amp;list=PLLTSM0eKjC2cYVUoex9WZpTEYyvw5buRc&amp;index=12">AIC</a>).</p>
 <p>Note that likelihood ratio test is suitable for nested models alone;
 whereas AIC is suitable for both nested and non-nested models.</p>
 <p>Use <code>lmtest</code> package for statistics computation.</p>
@@ -3365,7 +3364,7 @@ later one.</p>
 ## AIC     2540.085      526.9932     2550.154      537.4934</code></pre>
 <p>According to AIC, <code>ZINB_innocuum</code> seems the best model in
 the present case, since it has the smallest AIC relative to other three
-counterparts.</p>
+counterparts. <code>ZHNB_innocuum</code> was the second best model.</p>
 </div>
 <div id="step-7-interpret-the-model-coefficients" class="section level2" number="0.10">
 <h2><span class="header-section-number">0.10</span> Step 7 Interpret the
@@ -3422,6 +3421,23 @@ exists.</li>
 indicating there is no significant difference in structural zeros among
 three diagnosis status.</li>
 </ul>
+</div>
+<div id="final-remarks" class="section level2" number="0.11">
+<h2><span class="header-section-number">0.11</span> Final remarks</h2>
+<p>Although ZINB model outperforms ZHNB model in fitting abundance of
+<code>_Clostridium_innocuum_group</code>, we should note that the
+zero-inflated model, however assume the existence of a latent
+structural-zero class. If such a class does not seem justified, a hurdle
+model should be preferred to use fo the easier interpretation of
+zeros.<span class="citation">[@p.480, Statistical Analysis of Microbiome
+Data with R]</span></p>
+<p>The authors recommend in the book, Statistical Analysis of Microbiome
+Data with R that model selection should be based on: 1. Model fitting
+(to choose better-fitted models) 2. Conceptual appropriateness (the
+chosen models should be conceptual interpretative) 3. Parsimony (i.e.,
+<a href="https://en.wikipedia.org/wiki/Occam%27s_razor">Occam’s
+razor</a>, given all the criteria met, the simplest is selected as the
+best model)</p>
 </div>
 
 
