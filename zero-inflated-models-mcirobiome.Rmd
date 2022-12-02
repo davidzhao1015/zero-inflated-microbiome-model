@@ -74,7 +74,7 @@ setwd("C:/Users/17803/Documents/RStuodio-link-GitHub/zero-inflated-microbiome-mo
 
 ## Step 1 Preprocess data for downstream modeling 
 
-The 16S abundance data and metadata was retrieved from the [Inflammatory Bowel Disease Multi'omics Database] (<https://ibdmdb.org/tunnel/public/HMP2/16S/1806/products>).  
+The 16S abundance data and metadata was retrieved from the [Inflammatory Bowel Disease Multi'omics Database](https://ibdmdb.org/tunnel/public/HMP2/16S/1806/products).  
 
 ```{r microbiome count data}
 
@@ -179,7 +179,7 @@ abund_meta_rectum4$diagnosis <- factor(abund_meta_rectum4$diagnosis,
 
 ```
 The sampling depth varied by samples which likely affect hypothesis analysis. \ 
-I consider to choose a best depth threshold and to conduct rarefaction, following the [instruction] (<https://www.youtube.com/watch?v=c7H8jLjTxSE>) introduced by Dr. Pat Schloss. \ 
+I consider to choose a best depth threshold and to conduct rarefaction, following the [instruction](https://www.youtube.com/watch?v=c7H8jLjTxSE) introduced by Dr. Pat Schloss. \ 
 The optimal sampling depth threshold is determined according to the good's coverage statistics. 
 
 ```{r determin best sampling depth}
@@ -325,8 +325,6 @@ abund_meta_rectum6 <- abund_meta_rectum5 %>%
         filter(genus_rep == "_Clostridium_innocuum_group") 
         
 head(abund_meta_rectum6$Offset)  # view first rows 
-
-
 ```
 
 
@@ -335,7 +333,7 @@ The formula can be used to specify both components of the model pertaining to co
 
 To illustrate more features of zero-inflated and zero-hurdle models and to compare these features, in the following analysis, I choose the same covariate for both count and binomial distribution, but only set offset argument to count component. 
 
-The response variable is `read` (abundance) of the taxa `_Clostridium_innocuum_group`, and the independent (explanatory) variable is `diagnosis` which is a multi-level, categorical variable. The offset term is logarithm value of total read in individual samples. 
+The response variable is `read` (abundance) of the taxa `_Clostridium_innocuum_group`, and the independent (explanatory) variable is `diagnosis` which is a multi-level, categorical variable. The [offset](https://www.youtube.com/watch?v=EyKba_sOp0k&list=PLLTSM0eKjC2cYVUoex9WZpTEYyvw5buRc&index=9) term is logarithm value of total read in individual samples. 
 
 ```{r establish the formula}
 
@@ -394,7 +392,6 @@ ZHP_innocuum <- hurdle(formula = f_model,
                        data = abund_meta_rectum6) 
 
 summary(ZHP_innocuum)
-
 ```
 
 
@@ -405,16 +402,14 @@ ZHNB_innocuum <- hurdle(formula = f_model,
                         dist = "negbin",
                         data = abund_meta_rectum6) 
 
-
 summary(ZHNB_innocuum)
-
 ```
 
 
 
 ## Step 6 Select the optimal model 
 
-Compare four models, `ZIP_innocuum`, `ZINB_innocuum`, `ZHP_innocuum`, and `ZHNB_innocuum` based on alternative statsitics (i.e., likelihood ratio, and AIC). 
+Compare four models, `ZIP_innocuum`, `ZINB_innocuum`, `ZHP_innocuum`, and `ZHNB_innocuum` based on alternative statsitics (i.e., [likelihood ratio](https://www.youtube.com/watch?v=tDvwpET-nJQ&list=PLLTSM0eKjC2cYVUoex9WZpTEYyvw5buRc&index=12), and [AIC](https://www.youtube.com/watch?v=tDvwpET-nJQ&list=PLLTSM0eKjC2cYVUoex9WZpTEYyvw5buRc&index=12)). 
 
 Note that likelihood ratio test is suitable for nested models alone; whereas AIC is suitable for both nested and non-nested models. 
 
@@ -437,7 +432,7 @@ According to likelihood ratio tests,  `ZINB_innocuum` outperforms `ZIP_innocuum`
 t(AIC(ZIP_innocuum, ZINB_innocuum, ZHP_innocuum, ZHNB_innocuum)) # AIC smaller is better 
 
 ```
-According to AIC,  `ZINB_innocuum` seems the best model in the present case, since it has the smallest AIC relative to other three counterparts. 
+According to AIC,  `ZINB_innocuum` seems the best model in the present case, since it has the smallest AIC relative to other three counterparts. `ZHNB_innocuum` was the second best model. 
 
 
 ## Step 7 Interpret the model coefficients 
@@ -455,4 +450,17 @@ summary(ZINB_innocuum)
 
 2. Zero-inflation model coefficients: 
 - p values for the intercept, and coefficients are not significant, indicating there is no significant difference in structural zeros among three diagnosis status. 
+
+
+
+## Final remarks 
+Although ZINB model outperforms ZHNB model in fitting abundance of `_Clostridium_innocuum_group`, we should note that the zero-inflated model, however assume the existence of a latent structural-zero class. If such a class does not seem justified, a hurdle model should be preferred to use fo the easier interpretation of zeros.[@p.480, Statistical Analysis of Microbiome Data with R]
+
+The authors recommend in the book, Statistical Analysis of Microbiome Data with R that model selection should be based on:
+1. Model fitting (to choose better-fitted models)
+2. Conceptual appropriateness (the chosen models should be conceptual interpretative)
+3. Parsimony (i.e., [Occam's razor](https://en.wikipedia.org/wiki/Occam%27s_razor), given all the criteria met, the simplest is selected as the best model) 
+
+
+
 
