@@ -1,0 +1,34 @@
+---
+title: "Model on over-dispersion microbiome count data using HMP data as a case study"
+author: "David Xin Zhao"
+date: "2022-12-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Basic principles of models specializing in over-dispersed microbiome count data
+1. What is "over dispersion"? Over dispersion is the presence of greater variability in a data set than would be expected based on a given statistical model. Over dispersion destroys the assumption of Poisson regression that mean (nearly) equals to variance. Microbiome count data is typically over dispersed. In a result, Poisson regression is not suitable to fit microbiome count data, though microbiome count distribution is similar to Poisson distribution in some way. 
+
+2. Negative Binomial (NB) regression is the most common alternative to Poisson model, accounting for over dispersion. NB model includes an additional gamma parameter to regress a non-linear relationship between variance and mean. 
+
+3. R packages to implement NB regression:
+- `edgeR` package: One of most popular implementations of variance stabilization technique used in RNA-Seq analysis and can be adapted for microbiome count data. The edgeR package implements an exact binomial test, which generalized for over dispersed counts via the function `exactTest()`.  
+- `DESeq`/ `DESeq2` package: 
+
+
+
+## Steps to implement NB model with R packages 
+### `edgeR` pakcage 
+
+
+### `DESeq`/ `DESeq2` package
+
+
+
+
+
+
