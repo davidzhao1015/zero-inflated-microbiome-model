@@ -19,6 +19,7 @@ output:
     fig_width: 7
     fig_height: 6
     fig_caption: TRUE
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
