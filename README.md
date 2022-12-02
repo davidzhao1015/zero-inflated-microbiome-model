@@ -1,9 +1,9 @@
-# Models specializing zero-inflated microbiome data
+# Case study: model on over-dispersion, and zero-inflated microbiome count data
 
-Differential abundance analysis and/ or association between taxa and environmental variables is the interest of many microbiome researchers. However, microbiome abundance data often contains too many zeros, which may disturb assumptions of traditional mathematical algorithms, such as the Poisson model. In other words, insisting on traditional models with ignoring inflated zero issues in data may cause significant false positive or negative events. 
+Many microbiome studies apply statistical models to explore association between microbiota and environmental variables. However, microbiome count data is typically over-dispersed and zero excessive, failing to meet assumptions of traditional mathematical algorithms, such as the linear regression and Poisson model. Consequently, insisting on traditional models with ignorance of over-dispersion and zero inflation in data distribution will increase type I or II errors. 
 
-Fortunately, there is good news. Biostatisticians have developed powerful "weapons", the models specializing in zero-inflated data, releasing microbiome researchers from the bottleneck. 
+Fortunately, statisticians have developed powerful "weapons", robust models specializing in over-dispersion and zero-inflated data, releasing microbiome researchers from the bottleneck. A few R packages is accessible to implement such advanced models. 
 
-This repository aims to establish a reproducible pipeline for robust models specialized in zero-inflated microbiome data. This repository is public. Hopefully, the information in the repository might be helpful not only to my research but also to peers in the microbiome research field.  
+This repository aims to establish a R pipeline to build models to fit microbiome abundance data with over-dispersion and zero inflation. This repository is public, and hopefully provide practical information to microbiome researchers. 
 
-I made use of the state-of-the-art models recommended by Drs. Xia and Sun in their Book, Statistical analysis of microbiome with R (2018). In addition, I used a real-world dataset, HMP2, as an instance. The coding languate used is R. 
+I made use of the state-of-the-art models and R modules introduced by Drs. Xia and Sun in their Book, Statistical analysis of microbiome with R (2018). I demonstrate a full R pipeline from data processing to fitting model to coefficient interpretation, with the real-world data set provided by Human Microbiome Project.  
