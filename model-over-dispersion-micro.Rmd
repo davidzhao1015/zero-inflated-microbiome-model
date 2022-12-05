@@ -60,6 +60,7 @@ setwd("C:/Users/17803/Documents/RStuodio-link-GitHub/zero-inflated-microbiome-mo
 ```{r packages, results='hide', message=FALSE, warning=FALSE}
 library(tidyverse)
 library(edgeR)
+library(statmod)
 
 ```
 
@@ -214,9 +215,330 @@ length(groups)  # 89 distinct samples
 ```{r edgeR object}
 y <- DGEList(counts = mat_count, group = groups)  
 
-names(y) 
+```
+
+Use the $ symbol to access elements of the edgeR object. Original count matrix 
+```{r edgeR object element}
+head(y$counts)
 
 ```
+A summary of samples 
+```{r sample summary}
+y$samples
+
+
+```
+How many genes have 0 counts across all samples
+```{r  zero counts}
+sum(y$all.zeros)
+
+
+```
+
+### Step 3 Filter the data 
+- Purpose to filter the data is to effectively detect truly differentially expressed genes or abundant taxa and conduct downstream analysis. In early stage, removes every low abundant taxa in any experimental conditions before processing the normalization and differential abundance testing. 
+
+- To choose an optimal filtering threshold is the key in data filtering. 
+
+The edgeR function uses CPM filter. CPM represents counts per million, calculated as the raw counts divided by the library sizes and multiplied by one million. 
+
+For instance, we choose a cutoff, such as, at least 100 counts per million (calculated with cpm() in R) in more number of samples (i.e., 10) to remove those genes (taxa) with a CPM value less then this cutoff from the analysis. The number of samples should be larger than the size of the smallest group. 
+
+Keep an OTU with CPM of 100 in greater at least two samples. 
+
+```{r filter data}
+
+dim(y)
+
+y_full <- y # archive the old one in case I mess up 
+
+head(y$counts, 5)
+
+apply(y$counts, 2, sum) # total OTU per sample 
+
+keep <- rowSums(cpm(y) > 100) >= 2 
+
+y <- y[keep, ] 
+
+dim(y) # 402 OTU pass the filter threshold 
+
+```
+
+Few OTU is filtered so litter information lost by filtering. Next reset the library sizes. 
+
+```{r reset library size}
+
+y$samples$lib.size <- colSums(y$counts) 
+
+y$samples
+
+```
+
+### Step 4 Normalize the data 
+
+Normalization is used to ensure the parameters are comparable because different libraries are sequenced to different depths. 
+
+First, calculate the normalization factors to correct for the different compositions of the samples. 
+
+In edgeR, RNA or DNA composition is normalized by finding a set of scaling factors for the library sizes that minimize the log-fold changes between the samples for most OTUs. 
+
+The `calcNormaFactors()` function is used to a set of scaling factors. The default method for calculating these scale factors uses the TMM method (Trimmed Mean of M-values) to calculate normalization factors between samples. 
+
+```{r normalization}
+
+y <- calcNormFactors(y)
+
+y 
+
+y$samples
+
+
+
+
+```
+
+The effective library size is the product of the original library size and the scaling factor. In all downstream analysis, the effective library size replaces the original library size. Without the replacement, the default value is 1 for all values in `y$samples$norm.factors` 
+
+```{r effective library size}
+
+y$samples$lib.size*y$samples$norm.factors 
+
+```
+
+### Step 5 Explore the data by multi-dimensional scaling (MDS) plot 
+
+An MDS plot illustrates similarity/ dissimilarity between samples and projects the distance measure into two-dimensions. 
+
+
+```{r MDS plot}
+
+plotMDS(y, 
+        # method = "bcv", 
+        main = "MDS plot for IBD count data",
+        col = as.numeric(y$samples$group), 
+        labels = NULL,
+        pch = 16) 
+
+legend("topright",
+       as.character(unique(y$samples$group)),
+       col=1:3,
+       cex = 0.8,
+       pch = 16) 
+
+```
+
+
+### Step 6 Estimate the dispersions 
+The dispersion measures the biological variability of within-group variability, i.e., variability between replicates (or called inter-library variation) for that OTU. 
+
+For strongly abundant genes, the dispersion can be understood as a squared coefficient of variation: that is, a dispersion value of 0.01 indicates that the OTU's abundance tends to differ by 10% between samples of the same treatment group. 
+
+Typically, the shape of the dispersion fit is an exponentially decaying curve. Fit a model in edgeR to estimate the dispersion as below: 
+
+1. Estimate the common dispersion
+The common dispersion measure will give an idea of overall variability across the OTUs for the data set. 
+
+Rename the variable to y1 and estimate common dispersion as below, 
+```{r estimate dispersion}
+
+y1 <- estimateCommonDisp(y, verbose = T) 
+
+names(y1) # output includes the estimate and additional elements in the edgeR object 
+
+```
+
+2. Fit a trend model to get a OTU wise dispersion 
+If a trend model is not fit, `edgeR` by default uses the common dispersion as a trend. Once the model is fit, one can estimate OTU-wise (or, `tag-wise`) dispersion, which is a function of this model. 
+
+Each OTU will get its own unique dispersion estimate. 
+
+The OTU-wise (or, `tag-wise`) dispersion are squeezed toward the common value: a trended estimate computed by the "moving average" approach 
+```{r OTU-wise dispersion estimate}
+y1 <- estimateTagwiseDisp(y1) 
+
+names(y1) 
+
+```
+
+Use `plotBCV()` function to plot the OTU-wise biological coefficient of variation (square root of dispersion) against log2-CPM 
+```{r }
+
+plotBCV(y1)
+
+```
+
+3. Fit a generalized linear model to estimate the tag-wise dispersion 
+
+Alternatively, use GLM model to estimate the tag-wise dispersion estimate. 
+
+Define the design matrix prior to fitting GLM as follows, 
+```{r desgin matrix}
+
+design <- model.matrix(~groups) 
+
+rownames(design) <- colnames(y) 
+
+design 
+
+
+```
+
+Next, estimate OTU-wise dispersion over all OTUs, allowing for a possible abundance trend. The estimation is also robust against potential outlier OTUs. 
+
+```{r }
+
+require(statmod)
+
+y2 <- estimateDisp(y, design, robust = TRUE) 
+
+y2$common.dispersion 
+
+```
+
+Plot the OTU-wise biological coefficient of variation (square root of dispersions) against log2-CPM
+
+```{r }
+
+plotBCV(y2)
+
+```
+
+The coefficient of biological variation (BCV) is the square root of dispersion. 
+
+The above plot indicates that the trended dispersion decreases with OTU abundance. At low logCPM, the dispersion are very large indeed. 
+
+Note that only the trended dispersion is used under the quasi-likelihood (QL) pipeline, whereas the tagwise and common estiamtes are not. 
+
+In the following, use `glmQLFit()` function to estimate the QL dispersion, and then visualize them with the `plotQLDisp()` function. 
+
+```{r}
+
+fit <- glmQLFit(y2, design, robust = TRUE) 
+
+plotQLDisp(fit)
+
+```
+
+### Step 7 Test the differential abundance 
+
+Test the differentially abundant OTUs between conditions either using the function `exactTest()` or GLM approach. 
+
+```{r the exactTest approach}
+
+et_uc <- exactTest(y1, pair = c("nonIBD", "UC"))  
+topTags(et_uc)
+
+
+et_cd <- exactTest(y1, pair = c("nonIBD", "CD")) 
+topTags(et_cd) 
+
+
+
+```
+
+The test statistic is reported as p-value, which is the probability that a log fold changes as strong or even stronger as the observed one would be seen under the null hypothesis. 
+
+edgeR uses the Benjamini-Hochberg (BH) mehtod for adjusting the false discovery rate (FDR). 
+
+
+GLM is more feasible than exactTest() approach. Establish a design matrix to describe the treatment conditions using model.matrix(). 
+```{r GLM approach}
+
+
+
+
+```
+
+
+### Step 8 Interpret the results of differential abundance analysis with diagnostic plots 
+
+Use MA-plot and volcano plot to help interpret the results of differential abundance analysis. 
+- Volcano plot: illustrate relationship between effect size and p-value 
+- MA-plot: log-fold change (M-values) against the log-average (A-values) 
+
+In edgeR, the function `plotSmear()` can visualize the differential abundance data to provide a useful overview for an experiment with a two-group comparison. 
+
+```{r MA plot}
+
+da <- decideTestsDGE(et_uc, p.value = 0.1) 
+
+da_OTUs <- rownames(y1)[as.logical(da)] 
+
+plotSmear(et_uc, de.tags = da_OTUs, cex = 0.5) 
+abline(h = c(-2, 2), col="blue") 
+
+```
+
+In the MA-plot, red points represent those OTUs with adjusted p-value less than 0.1. The horizontal blue lines show 4-fold changes. 
+
+
+Volcano plot is an effective way to summarize both fold-change and a measure of statistical test, usually with a p-value. 
+It is a scatter-plot of the negative log10-transformed p-values from the OTU-specific test (on the y-axis) against the log2 fold change (on the x-axis). 
+
+```{r volcano plot}
+
+tab <- data.frame(logFC = et_uc$table[,1],
+                  negLogPval = -log10(et_uc$table[ ,3])) 
+
+head(tab)
+
+
+```
+
+
+Use the function par() and plot() to generate the volcano plot. 
+
+```{r}
+
+par(mar=c(5, 4, 4, 4))
+plot(tab, pch = 16,
+     cex = 0.6,
+     xlab = expression(log[2]~fold~change),
+     ylab=expression(-log[10]~pvalue)) 
+
+lfc <- 2
+
+pval <- 0.1 
+
+sig_OTUs <- (abs(tab$logFC)> lfc & tab$negLogPval > -log10(pval)) 
+
+points(tab[sig_OTUs, ], pch=16, cex=0.8, col="red") 
+abline(h = -log(pval), col ="green3", lty=2)
+abline(v = c(-lfc, lfc), col="blue", lty=2) 
+mtext(paste("pval=", pval), side =4, at = -log10(pval),
+      cex=0.8, line=0.5, las=1)
+mtext(c(paste("-", lfc, "fold"),
+        paste("+", lfc, "fold")),
+      side =3,
+      at=c(-lfc, lfc),
+      cex= 0.8, 
+      line = 0.5)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
