@@ -441,15 +441,6 @@ The test statistic is reported as p-value, which is the probability that a log f
 edgeR uses the Benjamini-Hochberg (BH) mehtod for adjusting the false discovery rate (FDR). 
 
 
-GLM is more feasible than exactTest() approach. Establish a design matrix to describe the treatment conditions using model.matrix(). 
-```{r GLM approach}
-
-
-
-
-```
-
-
 ### Step 8 Interpret the results of differential abundance analysis with diagnostic plots 
 
 Use MA-plot and volcano plot to help interpret the results of differential abundance analysis. 
