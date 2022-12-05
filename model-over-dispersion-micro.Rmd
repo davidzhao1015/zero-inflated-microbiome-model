@@ -1,8 +1,25 @@
 ---
 title: "Model on over-dispersion microbiome count data using HMP data as a case study"
 author: "David Xin Zhao"
-date: "2022-12-02"
-output: html_document
+date: "Last edited `r format(Sys.time(), '%d %B %Y')`"
+knit: (function(inputFile, encoding) { 
+      out_dir <- 'docs';
+      rmarkdown::render(inputFile,
+                        encoding=encoding, 
+                        output_file=file.path(dirname(inputFile), out_dir, 'index.html'))}) 
+output:
+  html_document:
+    theme: cosmo
+    highlight: pygments
+    df_print: paged
+    toc: TRUE
+    toc_float: TRUE
+    collapsed: FALSE
+    number_sections: TRUE
+    fig_width: 7
+    fig_height: 6
+    fig_caption: TRUE
+    code_folding: show
 ---
 
 ```{r setup, include=FALSE}
@@ -175,13 +192,6 @@ abund_meta_rectum4$diagnosis <- factor(abund_meta_rectum4$diagnosis,
                                        levels = c("nonIBD", "CD", "UC"))
 ```
 
-```{r variance-mean plot}
-
-
-
-
-```
-
 
 ### Step 2 Build the edgeR object 
 
@@ -291,8 +301,6 @@ y <- calcNormFactors(y)
 y 
 
 y$samples
-
-
 
 
 ```
@@ -439,15 +447,6 @@ topTags(et_cd)
 The test statistic is reported as p-value, which is the probability that a log fold changes as strong or even stronger as the observed one would be seen under the null hypothesis. 
 
 edgeR uses the Benjamini-Hochberg (BH) mehtod for adjusting the false discovery rate (FDR). 
-
-
-GLM is more feasible than exactTest() approach. Establish a design matrix to describe the treatment conditions using model.matrix(). 
-```{r GLM approach}
-
-
-
-
-```
 
 
 ### Step 8 Interpret the results of differential abundance analysis with diagnostic plots 
