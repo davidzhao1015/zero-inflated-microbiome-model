@@ -2,11 +2,11 @@
 title: "Model Zero-Inflated Microbiome"
 author: "David Xin Zhao"
 date: "Last edited `r format(Sys.time(), '%d %B %Y')`"
-knit: (function(inputFile, encoding) { 
+knit: (function(inputFile, encoding) {
       out_dir <- 'docs';
       rmarkdown::render(inputFile,
-                        encoding=encoding, 
-                        output_file=file.path(dirname(inputFile), out_dir, 'index.html'))}) 
+                        encoding=encoding,
+                        output_file=file.path(dirname(inputFile), out_dir, 'index.html'))})
 output:
   html_document:
     theme: cosmo
